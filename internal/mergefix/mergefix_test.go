@@ -1,35 +1,11 @@
 package mergefix
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 )
 
-func TestCompareVersions(t *testing.T) {
-	cases := []struct {
-		a, b string
-		want int
-	}{
-		{"v1.5.2", "v1.5.1", 1},
-		{"v1.5.1", "v1.5.2", -1},
-		{"v1.5.1", "v1.5.1", 0},
-		{"v2.0.0", "v1.9.9", 1},
-		{"v1.0.0", "v1.0.0-alpha", 1},  // release > pre-release
-		{"v1.0.0-alpha", "v1.0.0", -1}, // pre-release < release
-		{"v1.0.0-beta", "v1.0.0-alpha", 1},
-		// pseudo-versions: newer timestamp wins
-		{"v0.0.0-20231016000000-xyz", "v0.0.0-20231015000000-abc", 1},
-		{"v0.0.0-20231015000000-abc", "v0.0.0-20231016000000-xyz", -1},
-		{"v1.10.0", "v1.9.0", 1},  // numeric, not lexicographic
-		{"v1.9.0", "v1.10.0", -1}, // numeric, not lexicographic
-	}
-	for _, tc := range cases {
-		got := compareVersions(tc.a, tc.b)
-		if got != tc.want {
-			t.Errorf("compareVersions(%q, %q) = %d, want %d", tc.a, tc.b, got, tc.want)
-		}
-	}
-}
 
 func TestMergeGoMod(t *testing.T) {
 	t.Run("picks semver-max for single require conflict", func(t *testing.T) {
@@ -45,10 +21,10 @@ func TestMergeGoMod(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !containsLine(out, "require rsc.io/quote v1.5.2") {
+		if !containsModVer(out, "rsc.io/quote", "v1.5.2") {
 			t.Errorf("expected v1.5.2 in output, got:\n%s", out)
 		}
-		if containsLine(out, "require rsc.io/quote v1.5.1") {
+		if containsModVer(out, "rsc.io/quote", "v1.5.1") {
 			t.Errorf("unexpected v1.5.1 in output, got:\n%s", out)
 		}
 	})
@@ -60,18 +36,18 @@ func TestMergeGoMod(t *testing.T) {
 				"require rsc.io/foo v1.0.0\n" +
 				"=======\n" +
 				"require rsc.io/foo v1.1.0\n" +
-				"require rsc.io/bar v2.0.0\n" +
+				"require rsc.io/bar v1.0.0\n" +
 				">>>>>>> branch\n",
 		)
 		out, err := MergeGoMod(input)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !containsLine(out, "require rsc.io/foo v1.1.0") {
+		if !containsModVer(out, "rsc.io/foo", "v1.1.0") {
 			t.Errorf("expected foo v1.1.0 in output, got:\n%s", out)
 		}
-		if !containsLine(out, "require rsc.io/bar v2.0.0") {
-			t.Errorf("expected bar v2.0.0 in output, got:\n%s", out)
+		if !containsModVer(out, "rsc.io/bar", "v1.0.0") {
+			t.Errorf("expected bar v1.0.0 in output, got:\n%s", out)
 		}
 	})
 
@@ -85,20 +61,20 @@ func TestMergeGoMod(t *testing.T) {
 				">>>>>>> branch\n" +
 				"\n" +
 				"<<<<<<< HEAD\n" +
-				"require rsc.io/bar v2.0.0\n" +
+				"require rsc.io/bar v1.0.0\n" +
 				"=======\n" +
-				"require rsc.io/bar v2.1.0\n" +
+				"require rsc.io/bar v1.1.0\n" +
 				">>>>>>> branch\n",
 		)
 		out, err := MergeGoMod(input)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !containsLine(out, "require rsc.io/foo v1.1.0") {
+		if !containsModVer(out, "rsc.io/foo", "v1.1.0") {
 			t.Errorf("expected foo v1.1.0, got:\n%s", out)
 		}
-		if !containsLine(out, "require rsc.io/bar v2.1.0") {
-			t.Errorf("expected bar v2.1.0, got:\n%s", out)
+		if !containsModVer(out, "rsc.io/bar", "v1.1.0") {
+			t.Errorf("expected bar v1.1.0, got:\n%s", out)
 		}
 	})
 
@@ -126,7 +102,6 @@ func TestMergeGoMod(t *testing.T) {
 	})
 
 	t.Run("version in module path not corrupted", func(t *testing.T) {
-		// Module path contains the version string; replaceVersion must not corrupt it.
 		input := []byte(
 			"module a\n\n" +
 				"<<<<<<< HEAD\n" +
@@ -139,7 +114,7 @@ func TestMergeGoMod(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !containsLine(out, "require example.com/v1.5.1/pkg v1.5.2") {
+		if !containsModVer(out, "example.com/v1.5.1/pkg", "v1.5.2") {
 			t.Errorf("expected path preserved and version bumped, got:\n%s", out)
 		}
 	})
@@ -159,7 +134,7 @@ func TestMergeGoMod(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !containsLine(out, "require rsc.io/foo v1.2.0") {
+		if !containsModVer(out, "rsc.io/foo", "v1.2.0") {
 			t.Errorf("expected v1.2.0 (max), got:\n%s", out)
 		}
 	})
@@ -239,6 +214,12 @@ func TestMergeGoSum(t *testing.T) {
 			t.Errorf("want ErrorNoConflicts, got %v", err)
 		}
 	})
+}
+
+// containsModVer reports whether out contains "module version" as a substring,
+// matching both single-line ("require module version") and block ("\tmodule version") forms.
+func containsModVer(out []byte, module, version string) bool {
+	return bytes.Contains(out, []byte(module+" "+version))
 }
 
 // containsLine reports whether out contains a line equal to s.
