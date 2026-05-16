@@ -1,7 +1,10 @@
 module github.com/mauri870/gosumfix
 
-go 1.24.0
+go 1.25.0
 
-require rsc.io/script v0.0.2
+require (
+	golang.org/x/mod v0.36.0
+	rsc.io/script v0.0.2
+)
 
-require golang.org/x/tools v0.14.0 // indirect
+require golang.org/x/tools v0.44.0 // indirect

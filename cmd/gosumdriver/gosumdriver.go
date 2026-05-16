@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -127,10 +128,25 @@ func merge(current, base, other, fname string) error {
 	// ignore merge errors, we will fix them next
 	out, _ := cmd.Output()
 
-	// fix conflicts
-	buf, err := mergefix.RemoveConflictMarkers(out)
+	// select merge strategy based on file type
+	var mergeFunc func([]byte) ([]byte, error)
+	switch path.Base(fname) {
+	case "go.mod":
+		mergeFunc = mergefix.MergeGoMod
+	case "go.sum":
+		mergeFunc = mergefix.MergeGoSum
+	default:
+		return fmt.Errorf("unsupported file: %s", fname)
+	}
+
+	// fix conflicts; if git already resolved them cleanly, use the output as-is
+	buf, err := mergeFunc(out)
 	if err != nil {
-		return fmt.Errorf("failed to fix conflicts: %v", err)
+		if errors.Is(err, mergefix.ErrorNoConflicts) {
+			buf = out
+		} else {
+			return fmt.Errorf("failed to fix conflicts: %v", err)
+		}
 	}
 
 	// save the file overwriting the original file

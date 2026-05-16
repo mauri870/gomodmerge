@@ -47,7 +47,17 @@ func fixConflicts(filename string) error {
 		return fmt.Errorf("failed to read %s: %v\n", path.Base(filename), err)
 	}
 
-	out, err := mergefix.RemoveConflictMarkers(b)
+	var mergeFunc func([]byte) ([]byte, error)
+	switch path.Base(filename) {
+	case "go.mod":
+		mergeFunc = mergefix.MergeGoMod
+	case "go.sum":
+		mergeFunc = mergefix.MergeGoSum
+	default:
+		return fmt.Errorf("unsupported file: %s\n", path.Base(filename))
+	}
+
+	out, err := mergeFunc(b)
 	if err != nil {
 		switch {
 		case errors.Is(err, mergefix.ErrorNoConflicts):
