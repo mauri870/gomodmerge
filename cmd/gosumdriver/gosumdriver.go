@@ -34,7 +34,7 @@ You can find the .gitattributes file with the following command:
 If the previous command returns an empty string, you can create a global
 .gitattributes in your HOME directory and add the above lines to it:
 
-	echo "go.mod merge=gosumdriver\ngo.sum merge=gosumdriver" > ~/.gitattributes
+	echo "go.mod merge=gosumdriver\ngo.sum merge=gosumdriver" >> ~/.gitattributes
 	git config core.attributesfile ~/.gitattributes
 
 Run 'gosumdriver uninstall' to remove the driver.
