@@ -33,5 +33,6 @@ func scriptCmds() map[string]script.Cmd {
 	cmds := scripttest.DefaultCmds()
 	cmds["gomodmerge"] = script.Program("gomodmerge", nil, 0)
 	cmds["go"] = script.Program("go", nil, 0)
+	cmds["git"] = script.Program("git", nil, 0)
 	return cmds
 }
