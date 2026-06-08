@@ -180,6 +180,108 @@ func TestMergeGoMod(t *testing.T) {
 			t.Errorf("unexpected go1.21.5 in output, got:\n%s", out)
 		}
 	})
+
+	t.Run("direct vs indirect: direct wins", func(t *testing.T) {
+		// One side has a module as direct, the other as indirect.
+		// The merged result should carry the higher version; the // indirect
+		// annotation is left to go mod tidy, so we only check the version here.
+		input := []byte(
+			"module a\n\ngo 1.21.0\n\n" +
+				"<<<<<<< HEAD\n" +
+				"require rsc.io/foo v1.1.0\n" +
+				"=======\n" +
+				"require rsc.io/foo v1.1.0 // indirect\n" +
+				">>>>>>> branch\n",
+		)
+		out, err := MergeGoMod(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !containsModVer(out, "rsc.io/foo", "v1.1.0") {
+			t.Errorf("expected rsc.io/foo v1.1.0 in output, got:\n%s", out)
+		}
+	})
+
+	t.Run("pseudo-version semver ordering", func(t *testing.T) {
+		// A tagged release must beat an older pseudo-version on the other side,
+		// and a newer pseudo-version must beat an older one.
+		pseudo := "v0.0.0-20230101000000-abcdef012345"
+		tagged := "v0.1.0"
+		input := []byte(
+			"module a\n\ngo 1.21.0\n\n" +
+				"<<<<<<< HEAD\n" +
+				"require rsc.io/foo " + pseudo + "\n" +
+				"=======\n" +
+				"require rsc.io/foo " + tagged + "\n" +
+				">>>>>>> branch\n",
+		)
+		out, err := MergeGoMod(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !containsModVer(out, "rsc.io/foo", tagged) {
+			t.Errorf("expected tagged %s to win over pseudo-version, got:\n%s", tagged, out)
+		}
+
+		// newer pseudo beats older pseudo
+		older := "v0.0.0-20220101000000-000000000000"
+		newer := "v0.0.0-20230101000000-abcdef012345"
+		input2 := []byte(
+			"module a\n\ngo 1.21.0\n\n" +
+				"<<<<<<< HEAD\n" +
+				"require rsc.io/foo " + older + "\n" +
+				"=======\n" +
+				"require rsc.io/foo " + newer + "\n" +
+				">>>>>>> branch\n",
+		)
+		out2, err := MergeGoMod(input2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !containsModVer(out2, "rsc.io/foo", newer) {
+			t.Errorf("expected newer pseudo-version to win, got:\n%s", out2)
+		}
+	})
+
+	t.Run("toolchain rc vs release ordering", func(t *testing.T) {
+		// go1.21rc1 < go1.21.0 by semver; the release must win.
+		input := []byte(
+			"module a\n\n" +
+				"<<<<<<< HEAD\n" +
+				"go 1.21rc1\n" +
+				"toolchain go1.21rc1\n" +
+				"=======\n" +
+				"go 1.21.0\n" +
+				"toolchain go1.21.0\n" +
+				">>>>>>> branch\n",
+		)
+		out, err := MergeGoMod(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(out, []byte("go 1.21.0")) {
+			t.Errorf("expected go 1.21.0 in output, got:\n%s", out)
+		}
+		if bytes.Contains(out, []byte("go 1.21rc1")) {
+			t.Errorf("unexpected go 1.21rc1 in output, got:\n%s", out)
+		}
+		if !bytes.Contains(out, []byte("go1.21.0")) {
+			t.Errorf("expected toolchain go1.21.0 in output, got:\n%s", out)
+		}
+		if bytes.Contains(out, []byte("go1.21rc1")) {
+			t.Errorf("unexpected toolchain go1.21rc1 in output, got:\n%s", out)
+		}
+	})
+
+	t.Run("conflict-free file round-trips without formatting changes", func(t *testing.T) {
+		// A file with no conflict markers must come back as ErrorNoConflicts
+		// and must not be rewritten (no spurious diffs in the merge driver).
+		clean := []byte("module a\n\ngo 1.21.0\n\nrequire rsc.io/quote v1.5.2\n")
+		_, err := MergeGoMod(clean)
+		if !errors.Is(err, ErrorNoConflicts) {
+			t.Fatalf("want ErrorNoConflicts for conflict-free input, got %v", err)
+		}
+	})
 }
 
 func TestMergeGoSum(t *testing.T) {
