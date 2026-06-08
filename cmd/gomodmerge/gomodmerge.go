@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 
 	"github.com/mauri870/gomodmerge/internal/gomod"
 	"github.com/mauri870/gomodmerge/internal/mergefix"
@@ -102,7 +102,7 @@ func fixAll() error {
 	}
 
 	for _, file := range []string{"go.mod", "go.sum"} {
-		if err := fixFile(path.Join(dir, file)); err != nil {
+		if err := fixFile(filepath.Join(dir, file)); err != nil {
 			return err
 		}
 	}
@@ -117,20 +117,20 @@ func fixFile(filename string) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("file not found: %s", path.Base(filename))
+			return fmt.Errorf("file not found: %s", filepath.Base(filename))
 		}
-		return fmt.Errorf("failed to open %s: %v", path.Base(filename), err)
+		return fmt.Errorf("failed to open %s: %v", filepath.Base(filename), err)
 	}
 	defer f.Close()
 
 	b, err := io.ReadAll(f)
 	if err != nil {
-		return fmt.Errorf("failed to read %s: %v", path.Base(filename), err)
+		return fmt.Errorf("failed to read %s: %v", filepath.Base(filename), err)
 	}
 
-	mergeFunc := mergeFuncFor(path.Base(filename))
+	mergeFunc := mergeFuncFor(filepath.Base(filename))
 	if mergeFunc == nil {
-		return fmt.Errorf("unsupported file: %s", path.Base(filename))
+		return fmt.Errorf("unsupported file: %s", filepath.Base(filename))
 	}
 
 	out, err := mergeFunc(b)
@@ -141,16 +141,16 @@ func fixFile(filename string) error {
 		case errors.Is(err, mergefix.ErrorUnsupportedDirective):
 			return fmt.Errorf("replace or exclude directives found. Please fix the conflicts manually.")
 		default:
-			return fmt.Errorf("failed to fix conflicts in %s: %v", path.Base(filename), err)
+			return fmt.Errorf("failed to fix conflicts in %s: %v", filepath.Base(filename), err)
 		}
 	}
 
 	f.Close()
 	if err := os.WriteFile(filename, out, 0644); err != nil {
-		return fmt.Errorf("failed to write %s: %v", path.Base(filename), err)
+		return fmt.Errorf("failed to write %s: %v", filepath.Base(filename), err)
 	}
 
-	fmt.Printf("gomodmerge: %s merged\n", path.Base(filename))
+	fmt.Printf("gomodmerge: %s merged\n", filepath.Base(filename))
 	return nil
 }
 
@@ -164,7 +164,7 @@ func mergeDriver(current, base, other, fname string) error {
 	cmd := exec.Command("git", "merge-file", "-p", current, base, other)
 	out, _ := cmd.Output() // ignore exit code; conflicts are expected
 
-	mergeFunc := mergeFuncFor(path.Base(fname))
+	mergeFunc := mergeFuncFor(filepath.Base(fname))
 	if mergeFunc == nil {
 		return fmt.Errorf("unsupported file: %s", fname)
 	}
@@ -178,7 +178,7 @@ func mergeDriver(current, base, other, fname string) error {
 		}
 	}
 
-	if err := os.WriteFile(path.Join(dir, fname), buf, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, fname), buf, 0644); err != nil {
 		return err
 	}
 
@@ -186,7 +186,7 @@ func mergeDriver(current, base, other, fname string) error {
 		return fmt.Errorf("failed to run go mod tidy: %v", err)
 	}
 
-	buf, err = os.ReadFile(path.Join(dir, fname))
+	buf, err = os.ReadFile(filepath.Join(dir, fname))
 	if err != nil {
 		return err
 	}
