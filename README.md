@@ -18,6 +18,22 @@ After resolving conflicts, `go mod tidy` is run automatically to reconcile the d
 
 ## Installation
 
+### Per-project via `go tool` (Go 1.24+)
+
+Add the tool as dependencies of your module:
+
+```bash
+go get -tool github.com/mauri870/gosumfix/cmd/gosumfix@latest
+```
+
+This records the tools in `go.mod` so anyone who checks out the repo can use them without a separate install step.
+
+```bash
+go tool gosumfix
+```
+
+### Global
+
 ```bash
 go install github.com/mauri870/gosumfix/cmd/...@latest
 ```
@@ -31,10 +47,10 @@ This installs two binaries into `$GOPATH/bin`:
 
 ### Manual
 
-Run `gosumfix` from the root of the repository after a conflicted merge:
+Run from the root of the repository after a conflicted merge:
 
 ```bash
-gosumfix
+gosumfix          # global install
 ```
 
 It will resolve conflicts in `go.mod` and `go.sum` and run `go mod tidy`.
@@ -44,7 +60,7 @@ It will resolve conflicts in `go.mod` and `go.sum` and run `go mod tidy`.
 Install the driver once globally:
 
 ```bash
-gosumdriver install
+gosumdriver install          # global install
 ```
 
 Then add the following lines to your `.gitattributes` file (global or per-repo):
@@ -71,7 +87,7 @@ Once installed, `git merge` and `git rebase` will automatically invoke `gosumfix
 To uninstall the driver:
 
 ```bash
-gosumdriver uninstall
+gosumdriver uninstall          # global install
 ```
 
 Then remove the `merge=gosumdriver` lines from your `.gitattributes` file.
