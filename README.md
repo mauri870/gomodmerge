@@ -1,10 +1,20 @@
 # gosumfix
 
-This is a command line tool that tries to automatically fix git conflicts in the go.mod and go.sum files.
+`gosumfix` automatically resolves git merge conflicts in `go.mod` and `go.sum` files.
 
-If this experiment turns out to be useful, I plan to upstream it to the Go project as part of the `go` tool.
+> There is an upstream proposal for a git merge tool for cmd/go in [golang/go#32485](https://github.com/golang/go/issues/32485).
 
-There is a tracking proposal for this feature at https://www.github.com/golang/go/issues/32485.
+## How It Works
+
+**`go.sum`** conflicts are resolved by taking the union of both sides, deduplicating entries, and sorting the result. This is always safe because `go.sum` is an append-only set of content hashes.
+
+**`go.mod`** conflicts are resolved semantically using [`golang.org/x/mod/modfile`](https://pkg.go.dev/golang.org/x/mod/modfile):
+
+- `require` directives: the higher semver version wins per module; modules present only in one side are kept.
+- `go` and `toolchain` directives: the higher version wins.
+- `replace` and `exclude` directives inside conflict blocks are not supported and must be resolved manually.
+
+After resolving conflicts, `go mod tidy` is run automatically to reconcile the dependency graph.
 
 ## Installation
 
@@ -12,24 +22,56 @@ There is a tracking proposal for this feature at https://www.github.com/golang/g
 go install github.com/mauri870/gosumfix/cmd/...@latest
 ```
 
-This will install the binaries in your `$GOPATH/bin` directory.
+This installs two binaries into `$GOPATH/bin`:
 
-It includes the following commands:
-
-- `gosumfix`: The main command that tries to fix the conflicts in mod files.
-- `gosumdriver`: This is a git merge driver that will automatically run `gosumfix` when you have conflicts in the go.sum file.
+- `gosumfix`: Manually resolve conflicts in the current directory
+- `gosumdriver`: Git merge driver that invokes `gosumfix` automatically
 
 ## Usage
 
-When you have a conflict in the go.sum file you can run `gosumfix` to try to fix it. If the conflicting lines contain `replace` or `exclude` directives they need to be fixed manually.
+### Manual
+
+Run `gosumfix` from the root of the repository after a conflicted merge:
 
 ```bash
 gosumfix
 ```
 
-If you install the git merge driver you can run `git merge` as usual and the driver will automatically run `gosumfix` when there are conflicts in the go.sum/go.mod files.
+It will resolve conflicts in `go.mod` and `go.sum` and run `go mod tidy`.
+
+### Git Merge Driver (automatic)
+
+Install the driver once globally:
 
 ```bash
 gosumdriver install
-gosumdriver uninstall # To uninstall the driver
 ```
+
+Then add the following lines to your `.gitattributes` file (global or per-repo):
+
+```
+go.mod merge=gosumdriver
+go.sum merge=gosumdriver
+```
+
+To find or create a global `.gitattributes` file:
+
+```bash
+# Check if one is already configured
+git config core.attributesfile
+
+# If not, create one in your home directory
+echo "go.mod merge=gosumdriver" >> ~/.gitattributes
+echo "go.sum merge=gosumdriver" >> ~/.gitattributes
+git config --global core.attributesfile ~/.gitattributes
+```
+
+Once installed, `git merge` and `git rebase` will automatically invoke `gosumfix` whenever `go.mod` or `go.sum` conflicts are detected.
+
+To uninstall the driver:
+
+```bash
+gosumdriver uninstall
+```
+
+Then remove the `merge=gosumdriver` lines from your `.gitattributes` file.
