@@ -1,4 +1,4 @@
-gosumfix
+gomodmerge
 go run .
 stdout '99 bottles of beer'
 

@@ -1,4 +1,4 @@
-gosumfix
+gomodmerge
 stdout 'go.mod merged'
 go mod verify
 # higher go version must win

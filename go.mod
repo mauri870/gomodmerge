@@ -1,4 +1,4 @@
-module github.com/mauri870/gosumfix
+module github.com/mauri870/gomodmerge
 
 go 1.25.0
 

@@ -1,4 +1,4 @@
-gosumfix
+gomodmerge
 stdout 'go.mod merged'
 stdout 'go.sum merged'
 # are go.mod and go.sum valid?

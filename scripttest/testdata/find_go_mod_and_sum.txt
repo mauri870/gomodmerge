@@ -1,10 +1,10 @@
-! gosumfix
-stdout 'file not found: go.mod'
+! gomodmerge
+stderr 'file not found: go.mod'
 cp go.mod.tmp go.mod
-! gosumfix
-stdout 'file not found: go.sum'
+! gomodmerge
+stderr 'file not found: go.sum'
 cp go.sum.tmp go.sum
-gosumfix
+gomodmerge
 
 -- go.mod.tmp --
 

@@ -20,7 +20,7 @@ func TestAll(t *testing.T) {
 	}
 	env := os.Environ()
 	// make sure we have the commands installed
-	cmd := exec.Command("go", "install", "./../cmd/...")
+	cmd := exec.Command("go", "install", "./../cmd/gomodmerge")
 	cmd.Env = env
 	out, err := cmd.Output()
 	if err != nil {
@@ -31,7 +31,7 @@ func TestAll(t *testing.T) {
 
 func scriptCmds() map[string]script.Cmd {
 	cmds := scripttest.DefaultCmds()
-	cmds["gosumfix"] = script.Program("gosumfix", nil, 0)
+	cmds["gomodmerge"] = script.Program("gomodmerge", nil, 0)
 	cmds["go"] = script.Program("go", nil, 0)
 	return cmds
 }

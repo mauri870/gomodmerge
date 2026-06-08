@@ -1,10 +1,10 @@
-! gosumfix
-stdout 'replace or exclude directives found. Please fix the conflicts manually.'
+! gomodmerge
+stderr 'replace or exclude directives found. Please fix the conflicts manually.'
 
 cp go.mod.2 go.mod
 
-! gosumfix
-stdout 'replace or exclude directives found. Please fix the conflicts manually.'
+! gomodmerge
+stderr 'replace or exclude directives found. Please fix the conflicts manually.'
 
 -- go.mod --
 module a
