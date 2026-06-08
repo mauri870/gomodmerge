@@ -2,17 +2,17 @@
 
 `gosumfix` automatically resolves git merge conflicts in `go.mod` and `go.sum` files.
 
-> There is an upstream proposal for a git merge tool for cmd/go in [golang/go#32485](https://github.com/golang/go/issues/32485).
+> Upstream proposal for a git merge tool for cmd/go [golang/go#32485](https://github.com/golang/go/issues/32485).
 
 ## How It Works
 
 **`go.sum`** conflicts are resolved by taking the union of both sides, deduplicating entries, and sorting the result. This is always safe because `go.sum` is an append-only set of content hashes.
 
-**`go.mod`** conflicts are resolved semantically using [`golang.org/x/mod/modfile`](https://pkg.go.dev/golang.org/x/mod/modfile):
+**`go.mod`** conflicts are resolved semantically using [`golang.org/x/mod/modfile`](https://pkg.go.dev/golang.org/x/mod/modfile). Naively concatenating both sides is incorrect, gosumfix instead applies proper merge semantics:
 
-- `require` directives: the higher semver version wins per module; modules present only in one side are kept.
+- `require` directives: the higher semver version wins per module (consistent with MVS); modules present only in one side are kept.
 - `go` and `toolchain` directives: the higher version wins.
-- `replace` and `exclude` directives inside conflict blocks are not supported and must be resolved manually.
+- `replace` and `exclude` directives inside conflict blocks cannot be auto-resolved and require manual intervention; gosumfix exits non-zero in that case.
 
 After resolving conflicts, `go mod tidy` is run automatically to reconcile the dependency graph.
 

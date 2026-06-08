@@ -138,6 +138,48 @@ func TestMergeGoMod(t *testing.T) {
 			t.Errorf("expected v1.2.0 (max), got:\n%s", out)
 		}
 	})
+
+	t.Run("go directive: higher version wins", func(t *testing.T) {
+		input := []byte(
+			"module a\n\n" +
+				"<<<<<<< HEAD\n" +
+				"go 1.21.0\n" +
+				"=======\n" +
+				"go 1.22.0\n" +
+				">>>>>>> branch\n",
+		)
+		out, err := MergeGoMod(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(out, []byte("go 1.22.0")) {
+			t.Errorf("expected go 1.22.0 in output, got:\n%s", out)
+		}
+		if bytes.Contains(out, []byte("go 1.21.0")) {
+			t.Errorf("unexpected go 1.21.0 in output, got:\n%s", out)
+		}
+	})
+
+	t.Run("toolchain directive: higher version wins", func(t *testing.T) {
+		input := []byte(
+			"module a\n\ngo 1.21.0\n\n" +
+				"<<<<<<< HEAD\n" +
+				"toolchain go1.21.5\n" +
+				"=======\n" +
+				"toolchain go1.22.3\n" +
+				">>>>>>> branch\n",
+		)
+		out, err := MergeGoMod(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(out, []byte("go1.22.3")) {
+			t.Errorf("expected go1.22.3 in output, got:\n%s", out)
+		}
+		if bytes.Contains(out, []byte("go1.21.5")) {
+			t.Errorf("unexpected go1.21.5 in output, got:\n%s", out)
+		}
+	})
 }
 
 func TestMergeGoSum(t *testing.T) {
@@ -212,6 +254,31 @@ func TestMergeGoSum(t *testing.T) {
 		_, err := MergeGoSum([]byte("rsc.io/quote v1.5.2 h1:hash=\n"))
 		if !errors.Is(err, ErrorNoConflicts) {
 			t.Errorf("want ErrorNoConflicts, got %v", err)
+		}
+	})
+
+	t.Run("diff3 parent marker lines are excluded from output", func(t *testing.T) {
+		input := []byte(
+			"<<<<<<< HEAD\n" +
+				"rsc.io/quote v1.5.2 h1:new=\n" +
+				"||||||| parent\n" +
+				"rsc.io/quote v1.5.0 h1:old=\n" +
+				"=======\n" +
+				"rsc.io/quote v1.5.1 h1:other=\n" +
+				">>>>>>> branch\n",
+		)
+		out, err := MergeGoSum(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if containsLine(out, "rsc.io/quote v1.5.0 h1:old=") {
+			t.Errorf("parent section line must not appear in output, got:\n%s", out)
+		}
+		if !containsLine(out, "rsc.io/quote v1.5.2 h1:new=") {
+			t.Errorf("ours line missing from output, got:\n%s", out)
+		}
+		if !containsLine(out, "rsc.io/quote v1.5.1 h1:other=") {
+			t.Errorf("theirs line missing from output, got:\n%s", out)
 		}
 	})
 }

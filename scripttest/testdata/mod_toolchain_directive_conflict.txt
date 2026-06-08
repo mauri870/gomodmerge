@@ -1,0 +1,28 @@
+gosumfix
+stdout 'go.mod merged'
+go mod verify
+# higher toolchain version must win
+grep 'go1.22.3' go.mod
+! grep 'go1.21.5' go.mod
+go run .
+stdout 'hello'
+
+-- main.go --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("hello") }
+
+-- go.mod --
+module a
+
+go 1.21.0
+
+<<<<<<< HEAD
+toolchain go1.21.5
+=======
+toolchain go1.22.3
+>>>>>>> branch
+
+-- go.sum --
