@@ -1,0 +1,128 @@
+# Tests the merge driver invoked automatically by git using 'go tool gomodmerge',
+# configured per-repo (local git config + local .gitattributes). This is the
+# recommended setup: the tool is declared in go.mod and resolved via a Go
+# workspace, so no global PATH install is required.
+
+git init
+git config user.email test@example.com
+git config user.name 'Test User'
+
+# Set up a workspace so 'go tool gomodmerge' resolves to the local source tree
+# without needing a published release or global install.
+go work init .
+go work use $GOMODMERGE_SRC
+
+# Register the merge driver locally (per-repo) using 'go tool gomodmerge',
+# matching what 'gomodmerge install' configures globally.
+git config merge.gomodmerge.name 'go mod merge driver'
+git config merge.gomodmerge.driver 'go tool gomodmerge %A %O %B %P'
+
+# Commit the base state (v1.5.1).
+git add .
+git commit -m base
+
+# Feature branch: bump rsc.io/quote to v1.5.2.
+git checkout -b feature
+cp go.mod.feature go.mod
+cp go.sum.feature go.sum
+git add go.mod go.sum
+git commit -m 'bump quote to v1.5.2'
+
+# Back on main: bump the go directive to create a diverging change so git
+# cannot fast-forward and must invoke the merge driver for go.mod.
+git checkout master
+cp go.mod.main go.mod
+git add go.mod
+git commit -m 'bump go directive on main'
+
+# Merge: git detects conflicts and invokes 'go tool gomodmerge' via the driver.
+git merge feature
+
+! grep '<<<<<<<' go.mod
+! grep '<<<<<<<' go.sum
+
+go list -m all
+stdout '^rsc.io/quote v1.5.2$'
+go run .
+stdout '99 bottles of beer'
+
+-- .gitattributes --
+go.mod merge=gomodmerge
+go.sum merge=gomodmerge
+
+-- main.go --
+package main
+
+import (
+	"fmt"
+
+	"rsc.io/quote"
+)
+
+func main() {
+	fmt.Println(quote.Hello())
+}
+
+-- go.mod --
+module a
+
+go 1.21.0
+
+require rsc.io/quote v1.5.1
+
+require (
+	golang.org/x/text v0.16.0 // indirect
+	rsc.io/sampler v1.99.99 // indirect
+)
+
+tool github.com/mauri870/gomodmerge/cmd/gomodmerge
+
+-- go.mod.feature --
+module a
+
+go 1.21.0
+
+require rsc.io/quote v1.5.2
+
+require (
+	golang.org/x/text v0.16.0 // indirect
+	rsc.io/sampler v1.99.99 // indirect
+)
+
+tool github.com/mauri870/gomodmerge/cmd/gomodmerge
+
+-- go.mod.main --
+module a
+
+go 1.22.0
+
+require rsc.io/quote v1.5.1
+
+require (
+	golang.org/x/text v0.16.0 // indirect
+	rsc.io/sampler v1.99.99 // indirect
+)
+
+tool github.com/mauri870/gomodmerge/cmd/gomodmerge
+
+-- go.sum --
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
+golang.org/x/text v0.16.0/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
+rsc.io/quote v1.5.1 h1:ptSemFtffEBvMed43o25vSUpcTVcqxfXU8Jv0sfFVJs=
+rsc.io/quote v1.5.1/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+rsc.io/quote v1.5.2 h1:w5fcysjrx7yqtD/aO+QwRjYZOKnaM9Uh2b40tElTs3Y=
+rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+rsc.io/sampler v1.99.99 h1:7i08f/p5TBU5joCPW3GjWG1ZFCmr28ybGqlXtelhEK8=
+rsc.io/sampler v1.99.99/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+
+-- go.sum.feature --
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
+golang.org/x/text v0.16.0/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
+rsc.io/quote v1.5.2 h1:w5fcysjrx7yqtD/aO+QwRjYZOKnaM9Uh2b40tElTs3Y=
+rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+rsc.io/sampler v1.99.99 h1:7i08f/p5TBU5joCPW3GjWG1ZFCmr28ybGqlXtelhEK8=
+rsc.io/sampler v1.99.99/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
