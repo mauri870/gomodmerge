@@ -43,8 +43,8 @@ The driver makes `git merge` and `git rebase` resolve conflicts automatically.
 Per-repo: commit this file to the repository:
 
 ```
-go.mod merge=gomodmerge
-go.sum merge=gomodmerge
+go.mod merge=go tool gomodmerge
+go.sum merge=go tool gomodmerge
 ```
 
 Or host-wise:
