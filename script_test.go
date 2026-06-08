@@ -1,4 +1,4 @@
-package scripttest
+package gomodmerge_test
 
 import (
 	"context"
@@ -20,7 +20,7 @@ func TestAll(t *testing.T) {
 	}
 	env := os.Environ()
 	// make sure we have the commands installed
-	cmd := exec.Command("go", "install", "./../cmd/gomodmerge")
+	cmd := exec.Command("go", "install", "./cmd/gomodmerge")
 	cmd.Env = env
 	out, err := cmd.Output()
 	if err != nil {
