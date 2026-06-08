@@ -56,8 +56,7 @@ It will resolve conflicts in `go.mod` and `go.sum` and run `go mod tidy`.
 Install the driver once globally:
 
 ```bash
-gomodmerge install          # global install
-go tool gomodmerge install  # go tool install
+gomodmerge install
 ```
 
 Then add the following lines to your `.gitattributes` file (global or per-repo):
