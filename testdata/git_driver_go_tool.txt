@@ -12,10 +12,17 @@ git config user.name 'Test User'
 go work init .
 go work use $GOMODMERGE_SRC
 
-# Register the merge driver locally (per-repo) using 'go tool gomodmerge',
-# matching what 'gomodmerge install' configures globally.
-git config merge.gomodmerge.name 'go mod merge driver'
-git config merge.gomodmerge.driver 'go tool gomodmerge %A %O %B %P'
+# Redirect global git config to a temp file so install does not modify the
+# developer's real ~/.gitconfig.
+env GIT_CONFIG_GLOBAL=$WORK/gitconfig
+
+# Register the merge driver via the install subcommand.
+go tool gomodmerge install
+stdout 'gomodmerge driver installed'
+
+# Verify the driver command was written correctly.
+git config --global merge.gomodmerge.driver
+stdout 'go tool gomodmerge'
 
 # Commit the base state (v1.5.1).
 git add .

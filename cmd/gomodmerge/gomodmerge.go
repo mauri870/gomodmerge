@@ -19,9 +19,14 @@ var (
 	}
 	gitAddDriverCmd = []string{
 		"git", "config", "--global", "merge.gomodmerge.driver",
-		"gomodmerge %A %O %B %P",
+		"go tool gomodmerge %A %O %B %P",
 	}
 	driverInstalledMsg = `gomodmerge driver installed successfully
+
+The driver command is set to 'go tool gomodmerge'. Make sure the tool is
+declared in your module's go.mod:
+
+	go get -tool github.com/mauri870/gomodmerge/cmd/gomodmerge@latest
 
 Please add the following lines to your .gitattributes file:
 

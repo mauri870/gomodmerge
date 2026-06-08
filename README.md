@@ -16,75 +16,50 @@
 
 After resolving conflicts, `go mod tidy` is run automatically to reconcile the dependency graph.
 
-## Installation
+**Limitations:** `go.work` and `go.work.sum` workspace files are not supported.
 
-### Per-project via `go tool` (Go 1.24+)
+## Manual usage
 
-Add the tool as a dependency of your module:
-
-```bash
-go get -tool github.com/mauri870/gomodmerge/cmd/gomodmerge@latest
-```
-
-This records the tool in `go.mod` so anyone who checks out the repo can use it without a separate install step.
+Install:
 
 ```bash
-go tool gomodmerge
+go get -tool github.com/mauri870/gomodmerge/cmd/gomodmerge@latest  # per-project (recommended, Go 1.24+)
+go install github.com/mauri870/gomodmerge/cmd/gomodmerge@latest    # global
 ```
-
-### Global
-
-```bash
-go install github.com/mauri870/gomodmerge/cmd/gomodmerge@latest
-```
-
-## Usage
-
-### Manual
 
 Run from the root of the repository after a conflicted merge:
 
 ```bash
-gomodmerge          # global install
-go tool gomodmerge  # go tool install
+go tool gomodmerge  # per-project
+gomodmerge          # global
 ```
 
-It will resolve conflicts in `go.mod` and `go.sum` and run `go mod tidy`.
+## Git Merge Driver
 
-### Git Merge Driver (automatic)
+The driver makes `git merge` and `git rebase` resolve conflicts automatically.
 
-Install the driver once globally:
+**1. Wire up `.gitattributes`**
 
-```bash
-gomodmerge install
-```
-
-Then add the following lines to your `.gitattributes` file (global or per-repo):
+Per-repo: commit this file to the repository:
 
 ```
 go.mod merge=gomodmerge
 go.sum merge=gomodmerge
 ```
 
-To find or create a global `.gitattributes` file:
+Or host-wise:
 
 ```bash
-# Check if one is already configured
-git config core.attributesfile
-
-# If not, create one in your home directory
 echo "go.mod merge=gomodmerge" >> ~/.gitattributes
 echo "go.sum merge=gomodmerge" >> ~/.gitattributes
 git config --global core.attributesfile ~/.gitattributes
 ```
 
-Once installed, `git merge` and `git rebase` will automatically invoke `gomodmerge` whenever `go.mod` or `go.sum` conflicts are detected.
-
-To uninstall the driver:
+**2. Register the driver**:
 
 ```bash
-gomodmerge uninstall          # global install
-go tool gomodmerge uninstall  # go tool install
+go tool gomodmerge install  # per-project
+gomodmerge install          # global
 ```
 
-Then remove the `merge=gomodmerge` lines from your `.gitattributes` file.
+To uninstall, run `go tool gomodmerge uninstall` (or `gomodmerge uninstall`) and remove the `merge=gomodmerge` lines from your `.gitattributes`.
