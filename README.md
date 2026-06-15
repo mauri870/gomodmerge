@@ -38,16 +38,26 @@ gomodmerge          # global
 
 The driver makes `git merge` and `git rebase` resolve conflicts automatically.
 
-**1. Wire up `.gitattributes`**
+**Per-project** — `.gitattributes` and the tool directive are already committed to the repo, so anyone who clones only needs to register the driver locally once:
 
-Per-repo: commit this file to the repository:
-
-```
-go.mod merge=go tool gomodmerge
-go.sum merge=go tool gomodmerge
+```bash
+git config merge.gomodmerge.driver "go tool gomodmerge %A %O %B %P"
 ```
 
-Or host-wise:
+`.gitattributes` (commit to the repository):
+
+```
+go.mod merge=gomodmerge
+go.sum merge=gomodmerge
+```
+
+**Global** — applies to all repos on this machine:
+
+```bash
+git config --global merge.gomodmerge.driver "gomodmerge %A %O %B %P"
+```
+
+Then wire up the attributes. If the repository has a committed `.gitattributes`, add the lines there. Otherwise, configure a global attributes file:
 
 ```bash
 echo "go.mod merge=gomodmerge" >> ~/.gitattributes
@@ -55,11 +65,9 @@ echo "go.sum merge=gomodmerge" >> ~/.gitattributes
 git config --global core.attributesfile ~/.gitattributes
 ```
 
-**2. Register the driver**:
+To uninstall:
 
 ```bash
-go tool gomodmerge install  # per-project
-gomodmerge install          # global
+git config --remove-section merge.gomodmerge          # per-project
+git config --global --remove-section merge.gomodmerge # global
 ```
-
-To uninstall, run `go tool gomodmerge uninstall` (or `gomodmerge uninstall`) and remove the `merge=gomodmerge` lines from your `.gitattributes`.

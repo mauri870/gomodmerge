@@ -12,51 +12,6 @@ import (
 	"github.com/mauri870/gomodmerge/internal/mergefix"
 )
 
-var (
-	gitAddNameCmd = []string{
-		"git", "config", "--global", "merge.gomodmerge.name",
-		"A custom merge driver to fix go.mod and go.sum conflicts",
-	}
-	gitAddDriverCmd = []string{
-		"git", "config", "--global", "merge.gomodmerge.driver",
-		"go tool gomodmerge %A %O %B %P",
-	}
-	driverInstalledMsg = `gomodmerge driver installed successfully
-
-The driver command is set to 'go tool gomodmerge'. Make sure the tool is
-declared in your module's go.mod:
-
-	go get -tool github.com/mauri870/gomodmerge/cmd/gomodmerge@latest
-
-Please add the following lines to your .gitattributes file:
-
-	go.mod merge=gomodmerge
-	go.sum merge=gomodmerge
-
-You can find the .gitattributes file with the following command:
-
-	git config core.attributesfile
-
-If the previous command returns an empty string, you can create a global
-.gitattributes in your HOME directory and add the above lines to it:
-
-	echo "go.mod merge=gomodmerge" >> ~/.gitattributes
-	echo "go.sum merge=gomodmerge" >> ~/.gitattributes
-	git config --global core.attributesfile ~/.gitattributes
-
-Run 'gomodmerge uninstall' to remove the driver.
-`
-	gitRemoveDriverCmd = []string{
-		"git", "config", "--global", "--remove-section", "merge.gomodmerge",
-	}
-	driverUninstalledMsg = `gomodmerge driver uninstalled successfully
-
-Please manually remove the following lines from your .gitattributes file:
-
-	go.mod merge=gomodmerge
-	go.sum merge=gomodmerge
-`
-)
 
 func main() {
 	if len(os.Args) < 2 {
@@ -68,34 +23,15 @@ func main() {
 		return
 	}
 
-	// git merge driver
-	switch os.Args[1] {
-	case "install":
-		if err := install(); err != nil {
-			fmt.Fprintf(os.Stderr, "gomodmerge: failed to install merge driver: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Print(driverInstalledMsg)
-
-	case "uninstall":
-		if err := uninstall(); err != nil {
-			fmt.Fprintf(os.Stderr, "gomodmerge: failed to uninstall merge driver: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Print(driverUninstalledMsg)
-
-	default:
-		// called by git as a merge driver: gomodmerge %A %O %B %P
-		if len(os.Args) < 5 {
-			fmt.Fprintln(os.Stderr, "usage: gomodmerge [install|uninstall]")
-			fmt.Fprintln(os.Stderr, "       gomodmerge %A %O %B %P  (invoked by git)")
-			os.Exit(1)
-		}
-		current, base, other, fname := os.Args[1], os.Args[2], os.Args[3], os.Args[4]
-		if err := mergeDriver(current, base, other, fname); err != nil {
-			fmt.Fprintf(os.Stderr, "gomodmerge: %v\n", err)
-			os.Exit(1)
-		}
+	// called by git as a merge driver: gomodmerge %A %O %B %P
+	if len(os.Args) < 5 {
+		fmt.Fprintln(os.Stderr, "usage: gomodmerge %A %O %B %P  (invoked by git)")
+		os.Exit(1)
+	}
+	current, base, other, fname := os.Args[1], os.Args[2], os.Args[3], os.Args[4]
+	if err := mergeDriver(current, base, other, fname); err != nil {
+		fmt.Fprintf(os.Stderr, "gomodmerge: %v\n", err)
+		os.Exit(1)
 	}
 }
 
@@ -208,15 +144,3 @@ func mergeFuncFor(base string) func([]byte) ([]byte, error) {
 	return nil
 }
 
-func install() error {
-	for _, args := range [][]string{gitAddNameCmd, gitAddDriverCmd} {
-		if err := exec.Command(args[0], args[1:]...).Run(); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func uninstall() error {
-	return exec.Command(gitRemoveDriverCmd[0], gitRemoveDriverCmd[1:]...).Run()
-}

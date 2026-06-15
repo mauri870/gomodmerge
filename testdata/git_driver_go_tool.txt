@@ -6,23 +6,15 @@
 git init
 git config user.email test@example.com
 git config user.name 'Test User'
+git config commit.gpgsign false
 
 # Set up a workspace so 'go tool gomodmerge' resolves to the local source tree
 # without needing a published release or global install.
 go work init .
 go work use $GOMODMERGE_SRC
 
-# Redirect global git config to a temp file so install does not modify the
-# developer's real ~/.gitconfig.
-env GIT_CONFIG_GLOBAL=$WORK/gitconfig
-
-# Register the merge driver via the install subcommand.
-go tool gomodmerge install
-stdout 'gomodmerge driver installed'
-
-# Verify the driver command was written correctly.
-git config --global merge.gomodmerge.driver
-stdout 'go tool gomodmerge'
+# Register the driver locally (per-repo, no --global).
+git config merge.gomodmerge.driver 'go tool gomodmerge %A %O %B %P'
 
 # Commit the base state (v1.5.1).
 git add .
@@ -52,6 +44,7 @@ go list -m all
 stdout '^rsc.io/quote v1.5.2$'
 go run .
 stdout '99 bottles of beer'
+
 
 -- .gitattributes --
 go.mod merge=gomodmerge
